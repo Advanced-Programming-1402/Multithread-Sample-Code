@@ -7,80 +7,71 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class TaylorSeries
-{
+public class TaylorSeries {
     public static class CalculateSin implements Runnable {
-        MathContext mc;
-        int n;
+        MathContext mc = new MathContext(1000);     // use when calling BigDecimal operations like divide or multiply
         BigDecimal x;
-        public CalculateSin(int n, BigDecimal x) {
-            mc = new MathContext(1000, RoundingMode.HALF_DOWN);
-            this.n = n;
+        int n;
+        public CalculateSin(BigDecimal x, int n) {
             this.x = x;
+            this.n = n;
         }
 
         @Override
         public void run() {
-            BigDecimal sign = new BigDecimal("1");
-            if (n % 2 == 1) {
-                sign = new BigDecimal("-1");
+            BigDecimal sign = new BigDecimal(1);
+            if (n%2 == 1) {
+                sign = new BigDecimal(-1);
             }
 
-            x = x.pow(2*n + 1, mc);
-            BigDecimal numerator = x.multiply(sign, mc);
+            BigDecimal numerator = x.pow(2*n + 1);
+            numerator = numerator.multiply(sign, mc);
             BigDecimal denominator = factorial(2*n + 1);
 
             BigDecimal result = numerator.divide(denominator, mc);
-            addToSum(result);
+            addTouSum(result);
         }
 
-        private BigDecimal factorial(int n) {
-            BigDecimal temp = new BigDecimal("1");
+        public BigDecimal factorial(int n){
+            BigDecimal temp = new BigDecimal(1);
             for (int i = 1; i <= n; i++) {
                 temp = temp.multiply(new BigDecimal(i), mc);
             }
+
             return temp;
         }
-
-
     }
 
-    public static synchronized void addToSum(BigDecimal value) {
+    public static BigDecimal sum;
+
+    public static synchronized void addTouSum(BigDecimal value){
         sum = sum.add(value);
     }
 
-    static BigDecimal sum;
-    public static void main(String[] args) {
-//        double a = 19.11;
-//        double b = 7.43;
-//
-//        System.out.println(a*b);
-//
-//        BigDecimal a = new BigDecimal("19.11");
-//        BigDecimal b = new BigDecimal("7.43");
-//        System.out.println(a.multiply(b));
+    public static void main(String[] Args) {
+//        BigDecimal decimal = new BigDecimal("4.12");
+//        System.out.println(decimal);
 
-        sum = new BigDecimal("0");
-        BigDecimal x = new BigDecimal("0.01");
-
+//        ExecutorService cachedTP = Executors.newCachedThreadPool();
         ExecutorService threadPool = Executors.newFixedThreadPool(4);
-//        ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
 
-        for (int i = 0; i < 1000; i++) {
-            CalculateSin task = new CalculateSin(i, x);
+        sum = new BigDecimal(0);
+        BigDecimal x = new BigDecimal("0.01");  // sin(0.01) = ?
+
+        for (int i = 0; i < 100; i++) {                          // increasing the number of iterations improves
+            CalculateSin task = new CalculateSin(x, i);          // accuracy, try 200 and see the difference!
             threadPool.execute(task);
         }
 
-        threadPool.shutdown();
+        threadPool.shutdown();      // always call before awaitTermination
 
         try {
             threadPool.awaitTermination(10000, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
+           e.printStackTrace();
         }
 
-        System.out.println(sum.toPlainString());
-
+        // the accurate value of sin(0.01) up to 1000 decimal places
         BigDecimal accurateValue = new BigDecimal("0.009999833334166664682542438269099729038964385360169151033879" +
                 "1124794097345090639159659426367929614989901525182568937606738071143914781018343679925045223748779233" +
                 "4633395662957704288475175228160558357110105077439518716860615533070998720636987509269668842490541364" +
@@ -93,7 +84,17 @@ public class TaylorSeries
                 "1188402364506858174852606021099282767046225114299907364917050686481947141812831031312882254660611456" +
                 "524573907422800164140884130285721050703575");
 
-        BigDecimal error = sum.subtract(accurateValue);
-        System.out.println(error.abs().toPlainString());
+        sum = sum.setScale(1000, RoundingMode.HALF_DOWN);
+        accurateValue = accurateValue.setScale(1000, RoundingMode.HALF_DOWN);
+
+        System.out.println("sin(0.01) up to 1000 decimal places:");
+        System.out.println("Calculated Value:  " + sum);
+        System.out.println("Accurate Value:    " + accurateValue);
+
+        // note that a BigDecimal object may be printed as a number in the scientific notation. To print a normal
+        // decimal number use the toPlainString() method.
+        System.out.println("Difference:        " + accurateValue.subtract(sum).abs().toPlainString());
+
     }
+
 }
